@@ -240,6 +240,10 @@ public class ImageSlidingPuzzle : MonoBehaviour
         // Stop the timer
         if (PanelSwitcher.inst != null)
             PanelSwitcher.inst.StopTimer();
+        if (hintButton != null)
+            hintButton.gameObject.SetActive(false);
+        if (solvedText != null)
+            solvedText.gameObject.SetActive(true);
         // Optional: reveal full image, play sound, advance story, etc.
     }
 
