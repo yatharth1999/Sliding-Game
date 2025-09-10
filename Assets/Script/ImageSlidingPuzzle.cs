@@ -323,6 +323,13 @@ public class ImageSlidingPuzzle : MonoBehaviour
         }
         inputLocked = false;
         activeSolve = null;
+        // Ensure OnSolved logic fires for auto solves
+        if (IsSolved())
+        {
+            OnSolved();
+            if (PanelSwitcher.inst != null && PanelSwitcher.inst.IsPendingLifeLoss)
+                PanelSwitcher.inst.HandleAutoSolved();
+        }
     }
 
     private void MoveByDirection(string dir)

@@ -19,6 +19,7 @@ public class TypewriterEffect : MonoBehaviour
     public List<Button> answerButtons; // buttons for answers
 
     public static TypewriterEffect inst;
+    private bool restartMode = false; // when true, continue button acts as restart
     void Start()
     {
         if (inst == null)
@@ -32,6 +33,7 @@ public class TypewriterEffect : MonoBehaviour
 
     public IEnumerator ShowText()
     {
+    restartMode = false; // typing new story resets restart state
         continueButton.gameObject.SetActive(false);
         foreach (Button btn in answerButtons)
         {
@@ -62,6 +64,11 @@ public class TypewriterEffect : MonoBehaviour
 
     public void ShowButton()
     {
+        if (restartMode)
+        {
+            continueButton.gameObject.SetActive(true);
+            return;
+        }
         if (textIndex < 5)
         {
             continueButton.gameObject.SetActive(true);
@@ -79,6 +86,12 @@ public class TypewriterEffect : MonoBehaviour
 
     public void NextButton()
     {
+        // If we are in restart mode, act as restart instead of progressing story
+        if (restartMode)
+        {
+            RestartGame();
+            return;
+        }
         textIndex++;
         ImageSlidingPuzzle.inst.Rebuild();
         PanelSwitcher.inst.ShowPuzzleGamePanel();
@@ -110,6 +123,7 @@ public class TypewriterEffect : MonoBehaviour
 
         if (dingSound && typeSound)
             typeSound.PlayOneShot(dingSound);
+    EnableRestart();
     }
     public void WrongAnswer()
     {
@@ -135,5 +149,45 @@ public class TypewriterEffect : MonoBehaviour
 
         if (dingSound && typeSound)
             typeSound.PlayOneShot(dingSound);
+        EnableRestart();
+    }
+
+    public void EnableRestart()
+    {
+        restartMode = true;
+        // Show a restart button using the existing continueButton
+        if (continueButton != null)
+        {
+            var txt = continueButton.GetComponentInChildren<TextMeshProUGUI>();
+            if (txt != null) txt.text = "Restart";
+            continueButton.gameObject.SetActive(true);
+        }
+        // Hide answer buttons
+        foreach (Button btn in answerButtons)
+            btn.gameObject.SetActive(false);
+    }
+
+    public void RestartGame()
+    {
+        // Reset core game values
+        if (GameMgr.inst != null)
+            GameMgr.inst.ResetGame();
+        if (PanelSwitcher.inst != null)
+        {
+            PanelSwitcher.inst.StopTimer();
+            PanelSwitcher.inst.ShowMainMenuPanel();
+        }
+        // Reset UI
+        if (continueButton != null)
+        {
+            var txt = continueButton.GetComponentInChildren<TextMeshProUGUI>();
+            if (txt != null) txt.text = "Continue";
+            continueButton.gameObject.SetActive(false);
+        }
+        foreach (Button btn in answerButtons)
+            btn.gameObject.SetActive(false);
+        bodyText.text = "";
+        headingText.text = "";
+        restartMode = false;
     }
 }

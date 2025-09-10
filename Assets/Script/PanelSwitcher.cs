@@ -19,8 +19,15 @@ public class PanelSwitcher : MonoBehaviour
     [SerializeField] public TMP_Dropdown SolverDropdown;
 
     public TextMeshProUGUI timerText;
-    private float timeRemaining = 300f; // 5 minutes
+    public float timeRemaining = 120f; // 2 minutes
     private Coroutine timerCoroutine;
+
+    [Header("Lives / Hearts UI")]
+    [Tooltip("Assign 3 heart Image components in order (full set for lives). Will enable based on remaining lives.")]
+    public List<Image> heartImages = new List<Image>();
+    // Internal flag: timer-triggered auto-solve pending life loss once solution completes.
+    private bool pendingLifeLossOnAutoSolve = false;
+    public bool IsPendingLifeLoss => pendingLifeLossOnAutoSolve;
 
     private List<GameObject> allPanels;
     public static PanelSwitcher inst;
@@ -36,6 +43,7 @@ public class PanelSwitcher : MonoBehaviour
     void Start()
     {
         ShowMainMenuPanel();
+    UpdateHeartsUI();
     }
 
     private void SwitchToPanel(GameObject panelToShow)
@@ -72,9 +80,9 @@ public class PanelSwitcher : MonoBehaviour
     public void ShowPuzzleGamePanel()
     {
         SwitchToPanel(puzzleGamePanel);
-        // Start 5-minute timer
+        // Start 2-minute timer
         if (timerCoroutine != null) StopCoroutine(timerCoroutine);
-        timeRemaining = 300f;
+        timeRemaining = 120f;
         timerCoroutine = StartCoroutine(TimerCountdown());
     }
     public void ShowResultPanel()
@@ -106,23 +114,15 @@ public class PanelSwitcher : MonoBehaviour
             timeRemaining -= 1f;
         }
         UpdateTimerDisplay();
-        // Time's up, reduce life
-        if (GameMgr.inst != null)
+        // Time's up: trigger AI auto-solve first; life will be deducted AFTER solve completes.
+        if (puzzleGamePanel != null && ImageSlidingPuzzle.inst != null)
         {
-            GameMgr.inst.lives--;
-            if (GameMgr.inst.lives <= 0)
-            {
-                // Show game panel with wrong heading
-                ShowGamePanel();
-                if (TypewriterEffect.inst != null && TypewriterEffect.inst.headingText != null)
-                    TypewriterEffect.inst.headingText.text = "CASE FAILED";
-            }
-            else
-            {
-                // Show result panel or handle as needed
-                ShowResultPanel();
-            }
+            pendingLifeLossOnAutoSolve = true;
+            ImageSlidingPuzzle.inst.SolvePuzzle(); // parameterless; handler will check pending flag
+            yield break;
         }
+        // Fallback if no puzzle available: just deduct life immediately.
+        DeductLifeAfterAutoSolve();
     }
 
     private void UpdateTimerDisplay()
@@ -139,6 +139,46 @@ public class PanelSwitcher : MonoBehaviour
         {
             StopCoroutine(timerCoroutine);
             timerCoroutine = null;
+        }
+    }
+
+    // Update heart images enabled state based on GameMgr lives count.
+    public void UpdateHeartsUI()
+    {
+        if (heartImages == null || heartImages.Count == 0 || GameMgr.inst == null) return;
+        int lives = Mathf.Clamp(GameMgr.inst.lives, 0, heartImages.Count);
+        for (int i = 0; i < heartImages.Count; i++)
+        {
+            if (heartImages[i] != null)
+                heartImages[i].enabled = i < lives;
+        }
+    }
+
+    // Called by puzzle after an auto-solve completes (timer forced).
+    public void HandleAutoSolved()
+    {
+        if (!pendingLifeLossOnAutoSolve) return;
+        pendingLifeLossOnAutoSolve = false;
+        DeductLifeAfterAutoSolve();
+    }
+
+    private void DeductLifeAfterAutoSolve()
+    {
+        if (GameMgr.inst == null) return;
+        GameMgr.inst.lives = Mathf.Max(0, GameMgr.inst.lives - 1);
+        UpdateHeartsUI();
+        if (GameMgr.inst.lives <= 0)
+        {
+            ShowGamePanel();
+            if (TypewriterEffect.inst != null)
+            {
+                if (TypewriterEffect.inst.headingText != null)
+                    TypewriterEffect.inst.headingText.text = "YOU LOST THE CASE";
+                if (TypewriterEffect.inst.bodyText != null)
+                    TypewriterEffect.inst.bodyText.text = "AI won again solving this case faster than us.\nI think it's time to say goodbye.";
+                // Enable restart mode so player can restart after losing all lives
+                TypewriterEffect.inst.EnableRestart();
+            }
         }
     }
 }

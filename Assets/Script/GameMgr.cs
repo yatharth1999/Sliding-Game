@@ -54,4 +54,18 @@ public class GameMgr : MonoBehaviour
     {
         PanelSwitcher.inst.ShowMainMenuPanel();
     }
+
+    public void ResetGame()
+    {
+        lives = 3;
+        gameLevel = 3; // default
+        solverType = aiSolverType.BFS; // default
+        if (PanelSwitcher.inst != null)
+            PanelSwitcher.inst.UpdateHeartsUI();
+        if (TypewriterEffect.inst != null)
+            TypewriterEffect.inst.textIndex = 0;
+        // Reset puzzle size to default
+        if (ImageSlidingPuzzle.inst != null)
+            ImageSlidingPuzzle.inst.SetN(gameLevel);
+    }
 }
